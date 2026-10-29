@@ -1,0 +1,8 @@
+
+open_clip_torch
+torch
+torchvision
+Pillow
+numpy
+streamlit
+tqdm
