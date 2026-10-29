@@ -3,7 +3,6 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -16,38 +15,45 @@ EMBEDDINGS_FILE = PROJECT_ROOT / "embeddings" / "image_embeddings.npz"
 def search_similar_images(query_image, top_k=5):
     if not EMBEDDINGS_FILE.exists():
         raise FileNotFoundError(
-            "Embeddings not found. Run python src\\embed.py first."
+            "Embeddings not found. Run python src/embed.py first."
         )
 
-    # Load saved vectors and image paths
-    data = np.load(EMBEDDINGS_FILE, allow_pickle=False)
-    embeddings = data["embeddings"]
-    paths = data["paths"]
+    # Load saved embeddings and relative image paths
+    with np.load(EMBEDDINGS_FILE, allow_pickle=False) as data:
+        embeddings = data["embeddings"]
+        paths = data["paths"]
 
-    # Load model and convert query image to a vector
+    # Load the AI model and generate the query embedding
     model, preprocess, device = load_model()
     query_vector = get_embedding(
         query_image, model, preprocess, device
     )
 
-    # Cosine similarity (vectors are normalized)
+    # Calculate cosine similarity (embeddings are normalized)
     scores = embeddings @ query_vector
 
-    # Avoid returning the exact same file as its own match
+    # Resolve saved paths relative to the project root
+    resolved_paths = [
+        (PROJECT_ROOT / Path(path)).resolve()
+        for path in paths
+    ]
+
+    # Exclude the query image itself when it is a local file
     if isinstance(query_image, (str, Path)):
-        query_path = str(Path(query_image).resolve())
+        query_path = Path(query_image).resolve()
         scores = scores.copy()
-        for i, path in enumerate(paths):
-            if str(Path(path).resolve()) == query_path:
+
+        for i, path in enumerate(resolved_paths):
+            if path == query_path:
                 scores[i] = -1.0
 
-    # Return the highest-scoring images
-    top_k = min(top_k, len(paths))
+    # Select the top matching images
+    top_k = min(max(0, top_k), len(paths))
     indices = np.argsort(scores)[::-1][:top_k]
 
     return [
         {
-            "image_path": str(paths[i]),
+            "image_path": str(resolved_paths[i]),
             "similarity_score": float(scores[i])
         }
         for i in indices

@@ -19,6 +19,7 @@ IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
 
 
 def main():
+    # Find all supported images in the dataset
     image_paths = sorted(
         path for path in DATASET.rglob("*")
         if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS
@@ -37,13 +38,18 @@ def main():
     embeddings = []
     image_names = []
 
+    # Generate an embedding for every image
     for path in tqdm(image_paths, desc="Processing images"):
         try:
             with Image.open(path) as image:
                 vector = get_embedding(image, model, preprocess, device)
 
             embeddings.append(vector)
-            image_names.append(str(path.resolve()))
+
+            # Save a relative path instead of a Windows absolute path
+            image_names.append(
+                path.relative_to(PROJECT_ROOT).as_posix()
+            )
 
         except (OSError, ValueError, UnidentifiedImageError) as error:
             print(f"Skipping {path.name}: {error}")
@@ -52,6 +58,7 @@ def main():
         print("No images could be processed.")
         return
 
+    # Save embeddings and relative image paths
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 
     np.savez_compressed(

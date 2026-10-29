@@ -1,8 +1,9 @@
 
-open_clip_torch
-torch
-torchvision
+open_clip_torch==2.26.1
+torch==2.3.1+cpu
+torchvision==0.18.1+cpu
 Pillow
 numpy
 streamlit
 tqdm
+
